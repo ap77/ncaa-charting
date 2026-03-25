@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { fetchBracket } from "../hooks/useApi";
 import type { BracketResponse, MatchupResult } from "../types/api";
+import ModeSelector from "../components/ModeSelector";
 import ReliabilityBanner from "../components/ReliabilityBanner";
 import ReliabilityBadge from "../components/ReliabilityBadge";
 import MatchupCard from "../components/MatchupCard";
@@ -21,6 +22,7 @@ const CURRENT_SEASON = 2025;
 
 export default function FullBracket() {
   const season = CURRENT_SEASON;
+  const [mode, setMode] = useState<"safe" | "spicy">("safe");
   const [bracket, setBracket] = useState<BracketResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,13 +31,15 @@ export default function FullBracket() {
     reliability: "high" | "medium" | "low";
   } | null>(null);
 
+  const isSpicy = mode === "spicy";
+
   async function handleSimulate() {
     setError("");
     setLoading(true);
     setBracket(null);
 
     try {
-      const data = await fetchBracket(season);
+      const data = await fetchBracket(season, mode);
       setBracket(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to simulate bracket");
@@ -59,24 +63,39 @@ export default function FullBracket() {
 
   return (
     <div>
+      {/* Mode selector */}
+      <div className="mb-5">
+        <ModeSelector mode={mode} onChange={setMode} />
+      </div>
+
       {/* Header + simulate button */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-white">Jen's Full 2025–26 Bracket</h2>
+          <h2 className="text-2xl font-bold text-white">
+            {isSpicy ? "Spicy Jen's Full 2025–26 Bracket \uD83C\uDF36\uFE0F" : "Jen's Full 2025–26 Bracket"}
+          </h2>
           <p className="text-sm text-slate-400">
-            Every game, every round — Jen fills out the whole thing so you can argue about it.
+            {isSpicy
+              ? "Seeds are just numbers. Let the on-court stats decide everything."
+              : "Every game, every round — Jen fills out the whole thing so you can argue about it."}
           </p>
         </div>
         <button
           onClick={handleSimulate}
           disabled={loading}
-          className="px-8 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold rounded-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+          className={`px-8 py-3 font-semibold rounded-lg transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 ${
+            isSpicy
+              ? "bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white focus:ring-orange-500"
+              : "bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white focus:ring-emerald-500"
+          }`}
         >
           {loading ? (
             <span className="flex items-center gap-2">
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Jen's filling it out...
+              {isSpicy ? "Spicy Jen's causing chaos..." : "Jen's filling it out..."}
             </span>
+          ) : isSpicy ? (
+            "Let Spicy Jen Fill the Bracket \uD83C\uDF36\uFE0F"
           ) : (
             "Let Jen Fill the Bracket"
           )}

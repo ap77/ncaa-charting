@@ -19,26 +19,55 @@ import shap
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, log_loss, roc_auc_score
 
-from backend.app.data.features import build_training_dataset, get_feature_names
+from backend.app.data.features import (
+    build_training_dataset,
+    get_feature_names,
+    get_all_feature_names,
+)
 
 logger = logging.getLogger(__name__)
 
 MODEL_DIR = Path("models")
-MODEL_PATH = MODEL_DIR / "bracket_predictor.joblib"
-METADATA_PATH = MODEL_DIR / "model_metadata.json"
-SHAP_PATH = MODEL_DIR / "shap_explainer.joblib"
+
+# Safe Jen: uses all features including selection proxies
+SAFE_MODEL_PATH = MODEL_DIR / "safe_jen.joblib"
+SAFE_SHAP_PATH = MODEL_DIR / "safe_jen_shap.joblib"
+SAFE_METADATA_PATH = MODEL_DIR / "safe_jen_metadata.json"
+
+# Spicy Jen: causal game factors only, no proxies
+SPICY_MODEL_PATH = MODEL_DIR / "spicy_jen.joblib"
+SPICY_SHAP_PATH = MODEL_DIR / "spicy_jen_shap.joblib"
+SPICY_METADATA_PATH = MODEL_DIR / "spicy_jen_metadata.json"
+
+# Legacy paths (for backward compat)
+MODEL_PATH = SAFE_MODEL_PATH
+METADATA_PATH = SAFE_METADATA_PATH
+SHAP_PATH = SAFE_SHAP_PATH
 
 
-def train_model(test_seasons: list[int] = None) -> dict:
+def train_both(test_seasons: list[int] = None) -> dict:
+    """Train both Safe Jen and Spicy Jen models. Returns both metadata dicts."""
+    logger.info("=" * 60)
+    logger.info("TRAINING SAFE JEN (with selection proxies)")
+    logger.info("=" * 60)
+    safe = train_model(test_seasons=test_seasons, mode="safe")
+
+    logger.info("")
+    logger.info("=" * 60)
+    logger.info("TRAINING SPICY JEN (causal game factors only)")
+    logger.info("=" * 60)
+    spicy = train_model(test_seasons=test_seasons, mode="spicy")
+
+    return {"safe": safe, "spicy": spicy}
+
+
+def train_model(test_seasons: list[int] = None, mode: str = "safe") -> dict:
     """
-    Train the bracket prediction model.
-
-    Uses leave-future-out cross-validation: for each fold, train on all
-    seasons before the test season(s) and evaluate on the held-out season.
+    Train a bracket prediction model.
 
     Args:
         test_seasons: Seasons to hold out for final evaluation.
-                      Defaults to [2024, 2025].
+        mode: "safe" (all features) or "spicy" (causal only, no proxies).
 
     Returns:
         Dict with training metrics and feature importances.
@@ -46,12 +75,26 @@ def train_model(test_seasons: list[int] = None) -> dict:
     if test_seasons is None:
         test_seasons = [2024, 2025]
 
+    if mode == "spicy":
+        model_path = SPICY_MODEL_PATH
+        shap_path = SPICY_SHAP_PATH
+        metadata_path = SPICY_METADATA_PATH
+    else:
+        model_path = SAFE_MODEL_PATH
+        shap_path = SAFE_SHAP_PATH
+        metadata_path = SAFE_METADATA_PATH
+
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
     # Build dataset
-    logger.info("Building training dataset...")
+    logger.info("Building training dataset (mode=%s)...", mode)
     df = build_training_dataset()
-    feature_cols = get_feature_names()
+
+    # Safe uses all features + seed_diff; Spicy uses causal only, no proxies
+    if mode == "spicy":
+        feature_cols = get_feature_names()  # causal only
+    else:
+        feature_cols = get_all_feature_names()  # includes proxies + seed_diff
 
     if df.empty:
         raise ValueError("No training data found. Run ingestion first.")
@@ -124,11 +167,12 @@ def train_model(test_seasons: list[int] = None) -> dict:
         logger.info("  %s: %.4f", feat, imp)
 
     # --- Save model and metadata ---
-    joblib.dump(model, MODEL_PATH)
-    joblib.dump(explainer, SHAP_PATH)
-    logger.info("Model saved to %s", MODEL_PATH)
+    joblib.dump(model, model_path)
+    joblib.dump(explainer, shap_path)
+    logger.info("Model saved to %s", model_path)
 
     metadata = {
+        "mode": mode,
         "feature_columns": feature_cols,
         "test_seasons": test_seasons,
         "train_size": len(train_df),
@@ -142,7 +186,7 @@ def train_model(test_seasons: list[int] = None) -> dict:
         "feature_importance_shap": {k: round(float(v), 4) for k, v in shap_sorted},
     }
 
-    with open(METADATA_PATH, "w") as f:
+    with open(metadata_path, "w") as f:
         json.dump(metadata, f, indent=2)
 
     return metadata

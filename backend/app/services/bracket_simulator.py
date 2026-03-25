@@ -130,6 +130,7 @@ def _build_matchup_result(
     season: int,
     round_name: str,
     game_number: int,
+    mode: str = "safe",
 ) -> Dict[str, Any]:
     """
     Run the predictor for a single game and return a structured result dict.
@@ -138,6 +139,7 @@ def _build_matchup_result(
         team_a_name=team_a["name"],
         team_b_name=team_b["name"],
         season=season,
+        mode=mode,
     )
 
     winner_name = prediction["winner"]
@@ -171,6 +173,7 @@ def _simulate_round(
     season: int,
     round_name: str,
     game_offset: int = 0,
+    mode: str = "safe",
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Simulate all games in a single round.
@@ -184,7 +187,8 @@ def _simulate_round(
 
     for idx, (team_a, team_b) in enumerate(matchups):
         game_result = _build_matchup_result(
-            team_a, team_b, season, round_name, game_number=game_offset + idx + 1
+            team_a, team_b, season, round_name, game_number=game_offset + idx + 1,
+            mode=mode,
         )
         results.append(game_result)
 
@@ -204,7 +208,7 @@ def _pair_winners(winners: List[Dict[str, Any]]) -> List[Tuple[Dict[str, Any], D
     ]
 
 
-def simulate_bracket(season: int) -> Dict[str, Any]:
+def simulate_bracket(season: int, mode: str = "safe") -> Dict[str, Any]:
     """
     Simulate a full 64-team NCAA tournament bracket for the given season.
 
@@ -270,7 +274,7 @@ def simulate_bracket(season: int) -> Dict[str, Any]:
 
         # R64
         r64_results, r64_winners = _simulate_round(
-            r64_matchups, season, "R64", game_offset=game_counter
+            r64_matchups, season, "R64", game_offset=game_counter, mode=mode
         )
         # Add bye teams (missing opponents) to winners list
         r64_winners.extend(r64_byes)
@@ -280,7 +284,7 @@ def simulate_bracket(season: int) -> Dict[str, Any]:
         # R32
         r32_matchups = _pair_winners(r64_winners)
         r32_results, r32_winners = _simulate_round(
-            r32_matchups, season, "R32", game_offset=game_counter
+            r32_matchups, season, "R32", game_offset=game_counter, mode=mode
         )
         game_counter += len(r32_results)
         region_data["rounds"]["R32"] = r32_results
@@ -288,7 +292,7 @@ def simulate_bracket(season: int) -> Dict[str, Any]:
         # Sweet 16
         s16_matchups = _pair_winners(r32_winners)
         s16_results, s16_winners = _simulate_round(
-            s16_matchups, season, "S16", game_offset=game_counter
+            s16_matchups, season, "S16", game_offset=game_counter, mode=mode
         )
         game_counter += len(s16_results)
         region_data["rounds"]["S16"] = s16_results
@@ -296,7 +300,7 @@ def simulate_bracket(season: int) -> Dict[str, Any]:
         # Elite 8
         e8_matchups = _pair_winners(s16_winners)
         e8_results, e8_winners = _simulate_round(
-            e8_matchups, season, "E8", game_offset=game_counter
+            e8_matchups, season, "E8", game_offset=game_counter, mode=mode
         )
         game_counter += len(e8_results)
         region_data["rounds"]["E8"] = e8_results
@@ -315,7 +319,7 @@ def simulate_bracket(season: int) -> Dict[str, Any]:
         (final_four_teams[2], final_four_teams[3]),
     ]
     f4_results, f4_winners = _simulate_round(
-        f4_matchups, season, "F4", game_offset=game_counter
+        f4_matchups, season, "F4", game_offset=game_counter, mode=mode
     )
     game_counter += len(f4_results)
     bracket["final_four"] = {
@@ -329,7 +333,7 @@ def simulate_bracket(season: int) -> Dict[str, Any]:
     # ---- Championship ----
     champ_matchups = _pair_winners(f4_winners)
     champ_results, champ_winners = _simulate_round(
-        champ_matchups, season, "Championship", game_offset=game_counter
+        champ_matchups, season, "Championship", game_offset=game_counter, mode=mode
     )
     bracket["championship"] = {
         "game": champ_results[0],

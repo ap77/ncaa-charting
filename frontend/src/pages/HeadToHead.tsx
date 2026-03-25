@@ -1,5 +1,6 @@
 import { useState } from "react";
 import TeamSelector from "../components/TeamSelector";
+import ModeSelector from "../components/ModeSelector";
 import ConfidenceBar from "../components/ConfidenceBar";
 import StatBreakdownTable from "../components/StatBreakdownTable";
 import { fetchPrediction } from "../hooks/useApi";
@@ -10,6 +11,7 @@ const CURRENT_SEASON = 2025;
 export default function HeadToHead() {
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
+  const [mode, setMode] = useState<"safe" | "spicy">("safe");
   const [result, setResult] = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -29,7 +31,7 @@ export default function HeadToHead() {
     setResult(null);
 
     try {
-      const data = await fetchPrediction(teamA, teamB, CURRENT_SEASON);
+      const data = await fetchPrediction(teamA, teamB, CURRENT_SEASON, mode);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Jen ran into an issue. Try again!");
@@ -37,6 +39,8 @@ export default function HeadToHead() {
       setLoading(false);
     }
   }
+
+  const isSpicy = mode === "spicy";
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -48,6 +52,11 @@ export default function HeadToHead() {
         <p className="text-sm text-slate-400">
           She's crunched 17 years of March Madness data and has opinions about all of them.
         </p>
+      </div>
+
+      {/* Mode selector */}
+      <div className="mb-5">
+        <ModeSelector mode={mode} onChange={setMode} />
       </div>
 
       {/* Input section */}
@@ -63,13 +72,19 @@ export default function HeadToHead() {
         <button
           onClick={handlePredict}
           disabled={loading || !teamA || !teamB}
-          className="w-full px-8 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-semibold rounded-lg transition focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-900"
+          className={`w-full px-8 py-3 font-semibold rounded-lg transition focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-900 ${
+            isSpicy
+              ? "bg-orange-600 hover:bg-orange-500 disabled:bg-slate-700 disabled:text-slate-500 text-white focus:ring-orange-500"
+              : "bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-500 text-white focus:ring-emerald-500"
+          }`}
         >
           {loading ? (
             <span className="flex items-center justify-center gap-2">
               <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              Jen's thinking...
+              {isSpicy ? "Spicy Jen's cooking..." : "Jen's thinking..."}
             </span>
+          ) : isSpicy ? (
+            "Let Spicy Jen Pick \uD83C\uDF36\uFE0F"
           ) : (
             "Let Jen Pick"
           )}
@@ -84,25 +99,38 @@ export default function HeadToHead() {
 
       {/* Result card */}
       {result && (
-        <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+        <div className={`bg-slate-800/50 border rounded-xl overflow-hidden ${
+          isSpicy ? "border-orange-500/30" : "border-slate-700"
+        }`}>
           {/* Winner header */}
-          <div className="bg-emerald-600/10 border-b border-emerald-500/20 p-6 text-center">
-            <p className="text-slate-400 text-sm uppercase tracking-wider mb-1">Jen's Pick</p>
-            <h2 className="text-3xl font-bold text-emerald-400 mb-2">{result.winner}</h2>
+          <div className={`border-b p-6 text-center ${
+            isSpicy
+              ? "bg-orange-600/10 border-orange-500/20"
+              : "bg-emerald-600/10 border-emerald-500/20"
+          }`}>
+            <p className="text-slate-400 text-sm uppercase tracking-wider mb-1">
+              {isSpicy ? "Spicy Jen's Pick \uD83C\uDF36\uFE0F" : "Jen's Pick"}
+            </p>
+            <h2 className={`text-3xl font-bold mb-2 ${isSpicy ? "text-orange-400" : "text-emerald-400"}`}>
+              {result.winner}
+            </h2>
             <p className="text-xl text-white font-semibold">
               {(result.confidence * 100).toFixed(1)}% confident
             </p>
             <p className="text-sm text-slate-500 mt-1">
-              {result.confidence >= 0.85
-                ? "Jen's feeling really good about this one."
-                : result.confidence >= 0.65
-                  ? "Jen likes this pick, but anything can happen in March."
-                  : "This one's a toss-up — Jen's going with her gut."}
+              {isSpicy
+                ? result.confidence >= 0.65
+                  ? "The numbers don't lie. Pure hoops says this team is better."
+                  : "Coin flip territory — but Spicy Jen doesn't back down."
+                : result.confidence >= 0.85
+                  ? "Jen's feeling really good about this one."
+                  : result.confidence >= 0.65
+                    ? "Jen likes this pick, but anything can happen in March."
+                    : "This one's a toss-up — Jen's going with her gut."}
             </p>
           </div>
 
           <div className="p-6 space-y-6">
-            {/* Probability bar */}
             <ConfidenceBar
               probA={result.win_probability_a}
               probB={result.win_probability_b}
@@ -111,12 +139,11 @@ export default function HeadToHead() {
               winner={result.winner}
             />
 
-            {/* Stat breakdown */}
             {result.stat_breakdown && result.stat_breakdown.length > 0 && (
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-wider">
-                    Why Jen picked this
+                    {isSpicy ? "The tape don't lie" : "Why Jen picked this"}
                   </h4>
                   <span className="text-xs text-slate-600">Based on 2024–25 season stats</span>
                 </div>
@@ -134,8 +161,8 @@ export default function HeadToHead() {
       {/* Empty state */}
       {!result && !loading && !error && (
         <div className="text-center py-16 text-slate-600">
-          <div className="text-5xl mb-4">&#127936;</div>
-          <p className="text-lg">Jen's ready when you are</p>
+          <div className="text-5xl mb-4">{isSpicy ? "\uD83C\uDF36\uFE0F" : "\uD83C\uDFC0"}</div>
+          <p className="text-lg">{isSpicy ? "Spicy Jen's ready to cause chaos" : "Jen's ready when you are"}</p>
           <p className="text-sm mt-1">Pick two teams and let her do the rest</p>
         </div>
       )}

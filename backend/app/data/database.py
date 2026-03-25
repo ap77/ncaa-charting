@@ -69,6 +69,18 @@ class TeamSeasonStats(Base):
     strength_of_schedule = Column(Float)
     simple_rating_system = Column(Float)
 
+    # Advanced rate stats (from Sports Reference advanced table)
+    effective_fg_pct = Column(Float)       # eFG%
+    true_shooting_pct = Column(Float)      # TS%
+    turnover_pct = Column(Float)           # TOV% (turnovers per 100 plays)
+    offensive_rebound_pct = Column(Float)  # ORB%
+    total_rebound_pct = Column(Float)      # TRB%
+    free_throw_rate = Column(Float)        # FTA/FGA
+    three_point_rate = Column(Float)       # 3PA/FGA
+    assist_pct = Column(Float)             # AST%
+    steal_pct = Column(Float)              # STL%
+    block_pct = Column(Float)              # BLK%
+
     # Tournament seeding
     seed = Column(Integer)
 

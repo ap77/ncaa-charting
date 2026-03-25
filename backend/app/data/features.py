@@ -6,6 +6,10 @@ for model training and inference.
 
 Key design: features are computed as (Team A stat - Team B stat) deltas,
 making the model learn relative advantage rather than absolute values.
+
+Feature philosophy: prioritize causal game factors (efficiency, tempo,
+rate stats) over selection proxies (wins, seeds, SOS). Selection proxies
+correlate with winning but don't cause it in a specific matchup.
 """
 
 import logging
@@ -19,50 +23,84 @@ from backend.app.data.database import SessionLocal, TeamSeasonStats, TournamentG
 
 logger = logging.getLogger(__name__)
 
-# The 18 features our model uses, ordered by typical predictive importance
-STAT_COLUMNS = [
-    "adjusted_offensive_efficiency",
-    "adjusted_defensive_efficiency",
-    "simple_rating_system",
-    "strength_of_schedule",
+# ---- TIER 1: Causal game factors (efficiency & rate stats) ----
+# These directly measure HOW a team plays, not how good their resume looks.
+TIER1_STATS = [
+    "adjusted_offensive_efficiency",   # Points per 100 possessions
+    "adjusted_defensive_efficiency",   # Opp points per 100 possessions
+    "effective_fg_pct",                # eFG% (weights 3s)
+    "true_shooting_pct",               # TS% (includes FTs)
+    "turnover_pct",                    # TOV% — turnovers per 100 plays
+    "offensive_rebound_pct",           # ORB% — second-chance rate
+    "total_rebound_pct",              # TRB% — overall board control
+    "free_throw_rate",                 # FTA/FGA — getting to the line
+    "three_point_rate",                # 3PA/FGA — reliance on the 3
+    "tempo",                           # Pace — possessions per game
+    "free_throw_pct",                  # FT% — clutch shooting
+]
+
+# ---- TIER 2: Supporting box-score stats ----
+TIER2_STATS = [
+    "assist_pct",                      # AST% — ball movement
+    "steal_pct",                       # STL% — disruptive defense
+    "block_pct",                       # BLK% — rim protection
     "points_per_game",
     "opp_points_per_game",
     "field_goal_pct",
     "three_point_pct",
-    "free_throw_pct",
-    "tempo",
-    "offensive_rebounds_per_game",
-    "defensive_rebounds_per_game",
-    "assists_per_game",
-    "turnovers_per_game",
-    "steals_per_game",
-    "blocks_per_game",
+]
+
+# ---- TIER 3: Selection proxies (kept but de-emphasized) ----
+# These tell you the team is good, not why they'd win a specific game.
+TIER3_STATS = [
     "wins",
     "losses",
+    "strength_of_schedule",
+    "simple_rating_system",
 ]
+
+# Combined list — all stats available for UI display
+STAT_COLUMNS = TIER1_STATS + TIER2_STATS + TIER3_STATS
+
+# Features the model actually trains on — excludes selection proxies.
+# Wins, losses, SOS, SRS, and seed_diff are shown in the UI for context
+# but do NOT influence the model's prediction.
+TRAINING_STATS = TIER1_STATS + TIER2_STATS
 
 # Readable display names for the UI
 STAT_DISPLAY_NAMES = {
     "adjusted_offensive_efficiency": "Adj. Offensive Efficiency",
     "adjusted_defensive_efficiency": "Adj. Defensive Efficiency",
-    "simple_rating_system": "Simple Rating System (SRS)",
-    "strength_of_schedule": "Strength of Schedule",
+    "effective_fg_pct": "Effective FG%",
+    "true_shooting_pct": "True Shooting %",
+    "turnover_pct": "Turnover Rate (TOV%)",
+    "offensive_rebound_pct": "Off. Rebound %",
+    "total_rebound_pct": "Total Rebound %",
+    "free_throw_rate": "Free Throw Rate (FTA/FGA)",
+    "three_point_rate": "3-Point Rate (3PA/FGA)",
+    "tempo": "Tempo (Possessions/Game)",
+    "free_throw_pct": "Free Throw %",
+    "assist_pct": "Assist Rate (AST%)",
+    "steal_pct": "Steal Rate (STL%)",
+    "block_pct": "Block Rate (BLK%)",
     "points_per_game": "Points Per Game",
     "opp_points_per_game": "Opp. Points Per Game",
     "field_goal_pct": "Field Goal %",
     "three_point_pct": "3-Point %",
-    "free_throw_pct": "Free Throw %",
-    "tempo": "Tempo (Possessions/Game)",
-    "offensive_rebounds_per_game": "Offensive Rebounds/Game",
-    "defensive_rebounds_per_game": "Defensive Rebounds/Game",
-    "assists_per_game": "Assists/Game",
-    "turnovers_per_game": "Turnovers/Game",
-    "steals_per_game": "Steals/Game",
-    "blocks_per_game": "Blocks/Game",
     "wins": "Season Wins",
     "losses": "Season Losses",
+    "strength_of_schedule": "Strength of Schedule",
+    "simple_rating_system": "Simple Rating System (SRS)",
     "seed_diff": "Seed Difference",
 }
+
+# Stats where lower = better (flip sign so positive delta = Team A advantage)
+LOWER_IS_BETTER = [
+    "adjusted_defensive_efficiency",
+    "opp_points_per_game",
+    "turnover_pct",
+    "losses",
+]
 
 
 def _stats_to_dict(stat: TeamSeasonStats) -> dict:
@@ -79,9 +117,8 @@ def build_matchup_features(
     """
     Compute delta features for a matchup: (Team A - Team B).
 
-    For defensive stats and turnovers/losses, lower is better,
-    so the delta interpretation stays consistent:
-    positive delta = Team A advantage.
+    Positive delta = Team A advantage for all features
+    (defensive/turnover stats are sign-flipped).
     """
     features = {}
     for col in STAT_COLUMNS:
@@ -92,15 +129,15 @@ def build_matchup_features(
         else:
             features[f"delta_{col}"] = 0.0
 
-    # Flip sign for stats where lower is better (so positive = A is better)
-    for col in ["adjusted_defensive_efficiency", "opp_points_per_game", "turnovers_per_game", "losses"]:
+    # Flip sign for stats where lower is better
+    for col in LOWER_IS_BETTER:
         key = f"delta_{col}"
         if key in features:
             features[key] = -features[key]
 
     # Seed difference (lower seed = better, so flip)
     if seed_a is not None and seed_b is not None:
-        features["seed_diff"] = float(seed_b) - float(seed_a)  # positive = A has better seed
+        features["seed_diff"] = float(seed_b) - float(seed_a)
     else:
         features["seed_diff"] = 0.0
 
@@ -160,6 +197,12 @@ def build_training_dataset(session: Session = None) -> pd.DataFrame:
             session.close()
 
 
-def get_feature_names() -> list[str]:
-    """Return ordered list of feature column names the model expects."""
+def get_feature_names():
+    """Return ordered list of feature column names the model trains on.
+    Excludes selection proxies (wins, losses, SOS, SRS, seed_diff)."""
+    return [f"delta_{col}" for col in TRAINING_STATS]
+
+
+def get_all_feature_names():
+    """Return all feature names including proxies (for UI display)."""
     return [f"delta_{col}" for col in STAT_COLUMNS] + ["seed_diff"]

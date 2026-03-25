@@ -13,6 +13,7 @@ router = APIRouter()
 
 class BracketRequest(BaseModel):
     season: int = Field(default=2025, ge=2008, le=2030, description="Tournament season year")
+    mode: str = Field(default="safe", description="'safe' or 'spicy'")
 
 
 class BracketTeam(BaseModel):
@@ -83,7 +84,7 @@ async def simulate_bracket(req: BracketRequest):
     from backend.app.services.bracket_simulator import simulate_bracket as run_simulation
 
     try:
-        result = run_simulation(season=req.season)
+        result = run_simulation(season=req.season, mode=req.mode)
     except FileNotFoundError as exc:
         logger.error("Model not found: %s", exc)
         raise HTTPException(

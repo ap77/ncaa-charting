@@ -24,6 +24,7 @@ export interface PredictionResponse {
   team_b: string;
   win_probability_a: number;
   win_probability_b: number;
+  mode: string;
   stat_breakdown: StatBreakdown[];
 }
 

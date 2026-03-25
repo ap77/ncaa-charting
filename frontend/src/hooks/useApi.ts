@@ -9,11 +9,11 @@ export async function fetchTeams(season: number, query: string): Promise<TeamLis
   return res.json();
 }
 
-export async function fetchPrediction(teamA: string, teamB: string, season: number): Promise<PredictionResponse> {
+export async function fetchPrediction(teamA: string, teamB: string, season: number, mode: string = "safe"): Promise<PredictionResponse> {
   const res = await fetch(`${API_BASE}/api/predictions/matchup`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ team_a: teamA, team_b: teamB, season }),
+    body: JSON.stringify({ team_a: teamA, team_b: teamB, season, mode }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Prediction failed" }));
@@ -22,11 +22,11 @@ export async function fetchPrediction(teamA: string, teamB: string, season: numb
   return res.json();
 }
 
-export async function fetchBracket(season: number): Promise<BracketResponse> {
+export async function fetchBracket(season: number, mode: string = "safe"): Promise<BracketResponse> {
   const res = await fetch(`${API_BASE}/api/bracket/simulate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ season }),
+    body: JSON.stringify({ season, mode }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: "Bracket simulation failed" }));
