@@ -5,12 +5,12 @@ interface ModeSelectorProps {
 
 const MODES = {
   safe: {
-    label: "Safe Jen",
+    label: "\uD83C\uDFC6 Safe Jen",
     description:
       "Trusts the committee. Picks chalk. Has never once taken a risk in her life. Probably has Duke in the Final Four. (84.8% accurate)",
   },
   spicy: {
-    label: "Spicy Jen \uD83C\uDF36\uFE0F",
+    label: "\uD83C\uDF36\uFE0F Spicy Jen",
     description:
       "Jen woke up and chose violence. Chaos is a feature, not a bug. \uD83C\uDF36\uFE0F (61.6% accurate)",
   },
@@ -18,7 +18,7 @@ const MODES = {
 
 export default function ModeSelector({ mode, onChange }: ModeSelectorProps) {
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-3">
       {(["safe", "spicy"] as const).map((m) => {
         const info = MODES[m];
         const isActive = mode === m;
@@ -26,27 +26,27 @@ export default function ModeSelector({ mode, onChange }: ModeSelectorProps) {
           <button
             key={m}
             onClick={() => onChange(m)}
-            className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all duration-300 text-left ${
+            className={`flex-1 px-5 py-4 rounded-xl border-2 transition-all duration-300 text-left ${
               isActive
                 ? m === "safe"
-                  ? "border-emerald-500 bg-emerald-500/10"
-                  : "border-orange-500 bg-orange-500/10"
-                : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                  ? "border-emerald-400 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.15)]"
+                  : "border-orange-400 bg-orange-500/15 shadow-[0_0_24px_rgba(234,88,12,0.2)]"
+                : "border-slate-700/60 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
             }`}
           >
             <span
-              className={`font-bold text-sm block mb-1 ${
+              className={`font-extrabold text-base block mb-1.5 ${
                 isActive
                   ? m === "safe"
                     ? "text-emerald-400"
                     : "text-orange-400"
-                  : "text-slate-400"
+                  : "text-slate-500"
               }`}
             >
               {info.label}
             </span>
             <p
-              className={`text-xs leading-relaxed ${
+              className={`text-sm leading-relaxed ${
                 isActive ? "text-slate-300" : "text-slate-600"
               }`}
             >
