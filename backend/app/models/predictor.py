@@ -1,6 +1,6 @@
 """
 Prediction service: load trained models and generate matchup predictions
-with SHAP-based explainability.
+with feature-importance-based explainability.
 
 Supports two modes:
 - "safe": Uses all features including selection proxies (seeds, wins, SOS)
@@ -29,44 +29,35 @@ logger = logging.getLogger(__name__)
 _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 MODEL_DIR = _PROJECT_ROOT / "models"
 
-_models = {}  # mode -> (model, explainer, feature_cols)
+_models = {}  # mode -> (model, feature_cols)
 
 
 def _load_model(mode: str = "safe"):
-    """Lazy-load model and SHAP explainer for the given mode."""
+    """Lazy-load model for the given mode."""
     if mode in _models:
         return _models[mode]
 
     if mode == "spicy":
         model_path = MODEL_DIR / "spicy_jen.joblib"
-        shap_path = MODEL_DIR / "spicy_jen_shap.joblib"
         feature_cols = get_feature_names()
     else:
         model_path = MODEL_DIR / "safe_jen.joblib"
-        shap_path = MODEL_DIR / "safe_jen_shap.joblib"
         feature_cols = get_all_feature_names()
 
     if not model_path.exists():
         raise FileNotFoundError(
-            f"Model not found ({mode}). Run training first: python -m backend.scripts.run_train"
+            f"Model not found ({mode}). Run training first."
         )
 
     model = joblib.load(model_path)
-    explainer = joblib.load(shap_path)
-    _models[mode] = (model, explainer, feature_cols)
-    return model, explainer, feature_cols
+    _models[mode] = (model, feature_cols)
+    return model, feature_cols
 
 
 def _get_team_stats(session, team_name: str, season: int):
-    """Look up a team and its season stats.
-    Handles name aliases (e.g. 'Penn' -> 'Pennsylvania') by trying
-    the normalized name if the direct lookup has no stats."""
+    """Look up a team and its season stats."""
     normalized = normalize_team_name(team_name)
-
-    # Try direct match first
     team = session.query(Team).filter_by(name_normalized=normalized).first()
-
-    # If no direct match, or direct match has no stats, try fuzzy
     if team is None:
         team = session.query(Team).filter(Team.name.ilike(f"%{team_name}%")).first()
     if team is None:
@@ -78,9 +69,7 @@ def _get_team_stats(session, team_name: str, season: int):
         .first()
     )
 
-    # If no stats for this season under this team record, the name might
-    # be an alias (e.g. "Penn" -> "Pennsylvania"). Try finding a different
-    # team record whose normalized name matches ours and has stats.
+    # If no stats, try via normalized alias (e.g. "Penn" -> "Pennsylvania")
     if stats is None and normalized != team.name_normalized:
         alt_team = session.query(Team).filter_by(name_normalized=normalized).first()
         if alt_team and alt_team.id != team.id:
@@ -109,16 +98,11 @@ def _get_team_stats(session, team_name: str, season: int):
 def predict_matchup(
     team_a_name: str,
     team_b_name: str,
-    season: int = 2025,
+    season: int = 2026,
     mode: str = "safe",
 ) -> dict:
-    """
-    Predict the winner of a matchup between two teams.
-
-    Args:
-        mode: "safe" (all features) or "spicy" (causal only)
-    """
-    model, explainer, feature_cols = _load_model(mode)
+    """Predict the winner of a matchup between two teams."""
+    model, feature_cols = _load_model(mode)
 
     session = SessionLocal()
     try:
@@ -142,13 +126,14 @@ def predict_matchup(
         loser = team_b.name if prob_a >= 0.5 else team_a.name
         confidence = max(prob_a, prob_b)
 
-        shap_values = explainer.shap_values(X)[0]
-
+        # Build explanation using feature importance * delta direction
+        importances = model.feature_importances_
         stat_breakdown = _build_stat_breakdown(
-            feature_cols, shap_values, features,
+            feature_cols, importances, features,
             stats_a_dict, stats_b_dict,
             team_a.name, team_b.name,
             seed_a=stats_a.seed, seed_b=stats_b.seed,
+            prob_a=prob_a,
         )
 
         return {
@@ -167,14 +152,21 @@ def predict_matchup(
 
 
 def _build_stat_breakdown(
-    feature_cols, shap_values, features, stats_a, stats_b,
-    name_a, name_b, seed_a=None, seed_b=None,
+    feature_cols, importances, features, stats_a, stats_b,
+    name_a, name_b, seed_a=None, seed_b=None, prob_a=0.5,
 ):
+    """
+    Build a ranked list of stat contributions using feature importance
+    weighted by the delta value direction.
+
+    Impact = feature_importance * |delta|, direction based on which
+    team the delta favors relative to the prediction.
+    """
     breakdown = []
 
     for i, col in enumerate(feature_cols):
-        shap_val = float(shap_values[i])
         delta = features[col]
+        importance = float(importances[i])
 
         if col == "seed_diff":
             stat_key = "seed_diff"
@@ -186,13 +178,19 @@ def _build_stat_breakdown(
             val_b = stats_b.get(stat_key)
 
         display_name = STAT_DISPLAY_NAMES.get(stat_key, stat_key)
-        favors = name_a if shap_val > 0 else name_b
+
+        # Impact = importance * |delta| (how much this feature matters here)
+        impact = importance * abs(delta) if delta != 0 else 0.0
+
+        # Direction: positive delta favors team A (by feature design)
+        direction = impact if delta > 0 else -impact
+        favors = name_a if delta > 0 else name_b
 
         breakdown.append({
             "stat": display_name,
             "stat_key": stat_key,
-            "impact": round(abs(shap_val), 4),
-            "direction": round(shap_val, 4),
+            "impact": round(impact, 4),
+            "direction": round(direction, 4),
             "team_a_value": round(float(val_a), 2) if val_a is not None else None,
             "team_b_value": round(float(val_b), 2) if val_b is not None else None,
             "delta": round(float(delta), 4),

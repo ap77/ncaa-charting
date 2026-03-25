@@ -15,7 +15,6 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-import shap
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, log_loss, roc_auc_score
 
@@ -156,6 +155,7 @@ def train_model(test_seasons: list[int] = None, mode: str = "safe") -> dict:
 
     # --- SHAP explainer ---
     logger.info("Computing SHAP explainer...")
+    import shap
     explainer = shap.TreeExplainer(model)
     # Compute SHAP values on test set for validation
     shap_values = explainer.shap_values(X_test)
