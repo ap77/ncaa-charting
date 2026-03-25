@@ -11,8 +11,8 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.app.data.database import SessionLocal, Team, TeamSeasonStats, TournamentGame
-from backend.app.models.predictor import predict_matchup
+from app.data.database import SessionLocal, Team, TeamSeasonStats, TournamentGame
+from app.models.predictor import predict_matchup
 
 logger = logging.getLogger(__name__)
 

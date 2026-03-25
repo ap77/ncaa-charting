@@ -10,19 +10,19 @@ import numpy as np
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from backend.app.data.database import (
+from app.data.database import (
     SessionLocal,
     Team,
     TeamSeasonStats,
     TournamentGame,
     init_db,
 )
-from backend.app.data.scraper import (
+from app.data.scraper import (
     scrape_advanced_stats,
     scrape_team_season_stats,
     scrape_tournament_results,
 )
-from backend.app.data.team_names import normalize_team_name
+from app.data.team_names import normalize_team_name
 
 logger = logging.getLogger(__name__)
 

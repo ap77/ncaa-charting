@@ -1,0 +1,171 @@
+{
+  "feature_columns": [
+    "delta_adjusted_offensive_efficiency",
+    "delta_adjusted_defensive_efficiency",
+    "delta_effective_fg_pct",
+    "delta_true_shooting_pct",
+    "delta_turnover_pct",
+    "delta_offensive_rebound_pct",
+    "delta_total_rebound_pct",
+    "delta_free_throw_rate",
+    "delta_three_point_rate",
+    "delta_tempo",
+    "delta_free_throw_pct",
+    "delta_assist_pct",
+    "delta_steal_pct",
+    "delta_block_pct",
+    "delta_points_per_game",
+    "delta_opp_points_per_game",
+    "delta_field_goal_pct",
+    "delta_three_point_pct"
+  ],
+  "test_seasons": [
+    2024,
+    2025
+  ],
+  "train_size": 939,
+  "test_size": 125,
+  "test_accuracy": 0.616,
+  "test_auc": 0.6378,
+  "test_logloss": 0.6756,
+  "cv_results": [
+    {
+      "test_season": 2011,
+      "train_seasons": 3,
+      "n_test": 62,
+      "accuracy": 0.5968
+    },
+    {
+      "test_season": 2012,
+      "train_seasons": 4,
+      "n_test": 61,
+      "accuracy": 0.5902
+    },
+    {
+      "test_season": 2013,
+      "train_seasons": 5,
+      "n_test": 63,
+      "accuracy": 0.619
+    },
+    {
+      "test_season": 2014,
+      "train_seasons": 6,
+      "n_test": 62,
+      "accuracy": 0.6774
+    },
+    {
+      "test_season": 2015,
+      "train_seasons": 7,
+      "n_test": 63,
+      "accuracy": 0.6825
+    },
+    {
+      "test_season": 2016,
+      "train_seasons": 8,
+      "n_test": 63,
+      "accuracy": 0.5714
+    },
+    {
+      "test_season": 2017,
+      "train_seasons": 9,
+      "n_test": 63,
+      "accuracy": 0.6667
+    },
+    {
+      "test_season": 2018,
+      "train_seasons": 10,
+      "n_test": 62,
+      "accuracy": 0.6129
+    },
+    {
+      "test_season": 2019,
+      "train_seasons": 11,
+      "n_test": 63,
+      "accuracy": 0.5873
+    },
+    {
+      "test_season": 2021,
+      "train_seasons": 12,
+      "n_test": 62,
+      "accuracy": 0.629
+    },
+    {
+      "test_season": 2022,
+      "train_seasons": 13,
+      "n_test": 63,
+      "accuracy": 0.5714
+    },
+    {
+      "test_season": 2023,
+      "train_seasons": 14,
+      "n_test": 63,
+      "accuracy": 0.5079
+    }
+  ],
+  "round_accuracy": {
+    "R64": {
+      "accuracy": 0.6349,
+      "n_games": 63
+    },
+    "R32": {
+      "accuracy": 0.5938,
+      "n_games": 32
+    },
+    "S16": {
+      "accuracy": 0.625,
+      "n_games": 16
+    },
+    "E8": {
+      "accuracy": 0.5,
+      "n_games": 8
+    },
+    "F4": {
+      "accuracy": 0.75,
+      "n_games": 4
+    },
+    "Championship": {
+      "accuracy": 0.5,
+      "n_games": 2
+    }
+  },
+  "feature_importance_gain": {
+    "delta_opp_points_per_game": 0.0988,
+    "delta_turnover_pct": 0.0894,
+    "delta_block_pct": 0.0742,
+    "delta_points_per_game": 0.073,
+    "delta_total_rebound_pct": 0.0664,
+    "delta_free_throw_pct": 0.0658,
+    "delta_adjusted_offensive_efficiency": 0.0602,
+    "delta_free_throw_rate": 0.0601,
+    "delta_assist_pct": 0.0581,
+    "delta_offensive_rebound_pct": 0.0579,
+    "delta_steal_pct": 0.057,
+    "delta_three_point_pct": 0.0524,
+    "delta_three_point_rate": 0.0411,
+    "delta_true_shooting_pct": 0.0407,
+    "delta_field_goal_pct": 0.0393,
+    "delta_tempo": 0.0328,
+    "delta_effective_fg_pct": 0.0328,
+    "delta_adjusted_defensive_efficiency": 0.0
+  },
+  "feature_importance_shap": {
+    "delta_opp_points_per_game": 0.4531,
+    "delta_points_per_game": 0.336,
+    "delta_offensive_rebound_pct": 0.2562,
+    "delta_turnover_pct": 0.2382,
+    "delta_block_pct": 0.2149,
+    "delta_adjusted_offensive_efficiency": 0.2069,
+    "delta_steal_pct": 0.2004,
+    "delta_free_throw_pct": 0.1988,
+    "delta_assist_pct": 0.1632,
+    "delta_true_shooting_pct": 0.163,
+    "delta_free_throw_rate": 0.1547,
+    "delta_total_rebound_pct": 0.1348,
+    "delta_three_point_pct": 0.1258,
+    "delta_field_goal_pct": 0.0948,
+    "delta_effective_fg_pct": 0.0946,
+    "delta_three_point_rate": 0.0806,
+    "delta_tempo": 0.0576,
+    "delta_adjusted_defensive_efficiency": 0.0
+  }
+}

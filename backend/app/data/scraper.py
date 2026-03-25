@@ -14,7 +14,7 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from backend.app.data.team_names import normalize_team_name
+from app.data.team_names import normalize_team_name
 
 logger = logging.getLogger(__name__)
 

@@ -3,7 +3,7 @@
 from fastapi import APIRouter
 from sqlalchemy import func
 
-from backend.app.data.database import SessionLocal, Team, TeamSeasonStats
+from app.data.database import SessionLocal, Team, TeamSeasonStats
 
 router = APIRouter()
 

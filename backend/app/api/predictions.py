@@ -5,7 +5,7 @@ from typing import Any, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.app.models.predictor import predict_matchup
+from app.models.predictor import predict_matchup
 
 router = APIRouter()
 

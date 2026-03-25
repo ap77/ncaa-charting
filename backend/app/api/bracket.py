@@ -81,7 +81,7 @@ async def simulate_bracket(req: BracketRequest):
     confidence scores, key stat breakdowns, and per-round model reliability
     metadata.
     """
-    from backend.app.services.bracket_simulator import simulate_bracket as run_simulation
+    from app.services.bracket_simulator import simulate_bracket as run_simulation
 
     try:
         result = run_simulation(season=req.season, mode=req.mode)

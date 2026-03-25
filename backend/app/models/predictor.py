@@ -14,15 +14,15 @@ from typing import Optional
 import joblib
 import numpy as np
 
-from backend.app.data.database import SessionLocal, Team, TeamSeasonStats
-from backend.app.data.features import (
+from app.data.database import SessionLocal, Team, TeamSeasonStats
+from app.data.features import (
     STAT_COLUMNS,
     STAT_DISPLAY_NAMES,
     build_matchup_features,
     get_feature_names,
     get_all_feature_names,
 )
-from backend.app.data.team_names import normalize_team_name
+from app.data.team_names import normalize_team_name
 
 logger = logging.getLogger(__name__)
 

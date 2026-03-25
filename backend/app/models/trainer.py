@@ -19,7 +19,7 @@ import shap
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, log_loss, roc_auc_score
 
-from backend.app.data.features import (
+from app.data.features import (
     build_training_dataset,
     get_feature_names,
     get_all_feature_names,
@@ -27,7 +27,8 @@ from backend.app.data.features import (
 
 logger = logging.getLogger(__name__)
 
-MODEL_DIR = Path("models")
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+MODEL_DIR = _PROJECT_ROOT / "models"
 
 # Safe Jen: uses all features including selection proxies
 SAFE_MODEL_PATH = MODEL_DIR / "safe_jen.joblib"

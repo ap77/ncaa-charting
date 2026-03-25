@@ -1,21 +1,29 @@
 """FastAPI application entry point."""
 
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api.predictions import router as predictions_router
-from backend.app.api.teams import router as teams_router
-from backend.app.api.bracket import router as bracket_router
+from app.api.predictions import router as predictions_router
+from app.api.teams import router as teams_router
+from app.api.bracket import router as bracket_router
 
 app = FastAPI(
-    title="NCAA Tournament Bracket Predictor",
-    version="0.1.0",
-    description="Predict NCAA tournament matchup outcomes using ML",
+    title="Jen-erate the Winner",
+    version="0.2.0",
+    description="NCAA tournament matchup predictions — Safe Jen & Spicy Jen",
 )
+
+# Allow all origins in production (static frontend on different domain)
+allowed_origins = os.environ.get(
+    "CORS_ORIGINS",
+    "http://localhost:5173,http://localhost:3000",
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # Vite dev server
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

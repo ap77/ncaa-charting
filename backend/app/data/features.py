@@ -19,7 +19,7 @@ import numpy as np
 import pandas as pd
 from sqlalchemy.orm import Session
 
-from backend.app.data.database import SessionLocal, TeamSeasonStats, TournamentGame, Team
+from app.data.database import SessionLocal, TeamSeasonStats, TournamentGame, Team
 
 logger = logging.getLogger(__name__)
 
