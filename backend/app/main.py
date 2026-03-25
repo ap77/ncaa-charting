@@ -37,10 +37,18 @@ def health():
 
 
 # Serve frontend static files
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-_FRONTEND_DIST = _PROJECT_ROOT / "frontend" / "dist"
+# Find frontend dist — works both locally and in Docker
+_FRONTEND_DIST = None
+for _candidate in [
+    Path(__file__).resolve().parent.parent.parent / "frontend" / "dist",  # local dev
+    Path(__file__).resolve().parent.parent / "frontend" / "dist",         # Docker /app
+    Path("/app/frontend/dist"),                                            # Docker absolute
+]:
+    if _candidate.exists():
+        _FRONTEND_DIST = _candidate
+        break
 
-if _FRONTEND_DIST.exists():
+if _FRONTEND_DIST is not None:
     app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="assets")
 
     @app.get("/{full_path:path}")

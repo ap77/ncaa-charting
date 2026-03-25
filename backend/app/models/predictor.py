@@ -26,8 +26,18 @@ from app.data.team_names import normalize_team_name
 
 logger = logging.getLogger(__name__)
 
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-MODEL_DIR = _PROJECT_ROOT / "models"
+# Find models dir — works both locally and in Docker
+MODEL_DIR = None
+for _candidate in [
+    Path(__file__).resolve().parent.parent.parent.parent / "models",
+    Path(__file__).resolve().parent.parent.parent / "models",
+    Path("/app/models"),
+]:
+    if _candidate.exists():
+        MODEL_DIR = _candidate
+        break
+if MODEL_DIR is None:
+    MODEL_DIR = Path("models")
 
 _models = {}  # mode -> (model, feature_cols)
 

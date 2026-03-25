@@ -14,8 +14,21 @@ from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 import os
 
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-_DB_PATH = os.path.join(_PROJECT_ROOT, "data", "ncaa_tournament.db")
+# Find DB — works both locally and in Docker
+_DB_PATH = None
+for _dir in [
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "data"),
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "data"),
+    "/app/data",
+]:
+    _candidate = os.path.join(os.path.normpath(_dir), "ncaa_tournament.db")
+    if os.path.exists(_candidate):
+        _DB_PATH = _candidate
+        break
+
+if _DB_PATH is None:
+    _DB_PATH = os.path.join("data", "ncaa_tournament.db")
+
 DATABASE_URL = f"sqlite:///{_DB_PATH}"
 
 engine = create_engine(DATABASE_URL, echo=False)
