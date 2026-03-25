@@ -5,14 +5,16 @@ interface ModeSelectorProps {
 
 const MODES = {
   safe: {
-    label: "\uD83C\uDFC6 Safe Jen",
+    label: "Safe Jen \uD83C\uDFC6",
+    accuracy: "84.8%",
     description:
-      "Trusts the committee. Picks chalk. Has never once taken a risk in her life. Probably has Duke in the Final Four. (84.8% accurate)",
+      "Trusts the committee. Trusts the seeds. Picks chalk. Has never once taken a risk in her life. Probably has Duke in the Final Four.",
   },
   spicy: {
-    label: "\uD83C\uDF36\uFE0F Spicy Jen",
+    label: "Spicy Jen \uD83C\uDF36\uFE0F",
+    accuracy: "61.6%",
     description:
-      "Jen woke up and chose violence. Chaos is a feature, not a bug. \uD83C\uDF36\uFE0F (61.6% accurate)",
+      "Doesn\u2019t care about your seed. Doesn\u2019t care about your r\u00e9sum\u00e9. Only cares about what happens on the court. Chaos is a feature, not a bug.",
   },
 };
 
@@ -34,17 +36,30 @@ export default function ModeSelector({ mode, onChange }: ModeSelectorProps) {
                 : "border-slate-700/60 bg-slate-800/30 hover:border-slate-600 hover:bg-slate-800/50"
             }`}
           >
-            <span
-              className={`font-extrabold text-base block mb-1.5 ${
-                isActive
-                  ? m === "safe"
-                    ? "text-emerald-400"
-                    : "text-orange-400"
-                  : "text-slate-500"
-              }`}
-            >
-              {info.label}
-            </span>
+            <div className="flex items-center justify-between mb-1.5">
+              <span
+                className={`font-extrabold text-base ${
+                  isActive
+                    ? m === "safe"
+                      ? "text-emerald-400"
+                      : "text-orange-400"
+                    : "text-slate-500"
+                }`}
+              >
+                {info.label}
+              </span>
+              <span
+                className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                  isActive
+                    ? m === "safe"
+                      ? "bg-emerald-500/20 text-emerald-400"
+                      : "bg-orange-500/20 text-orange-400"
+                    : "bg-slate-700/50 text-slate-500"
+                }`}
+              >
+                {info.accuracy} accurate
+              </span>
+            </div>
             <p
               className={`text-sm leading-relaxed ${
                 isActive ? "text-slate-300" : "text-slate-600"
