@@ -1,12 +1,9 @@
 import { useState } from "react";
 import HeadToHead from "./pages/HeadToHead";
-import FullBracket from "./pages/FullBracket";
 
-type Tab = "h2h" | "bracket";
 type Mode = "safe" | "spicy";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<Tab>("h2h");
   const [mode, setMode] = useState<Mode>("safe");
 
   const isSpicy = mode === "spicy";
@@ -45,48 +42,16 @@ export default function App() {
                 <span className="text-white">the Winner</span>
               </h1>
               <p className={`text-xs -mt-0.5 transition-colors duration-700 ${isSpicy ? "text-orange-400/50" : "text-slate-500"}`}>
-                {isSpicy ? "Spicy Jen's 2025\u201326 NCAA Tournament Picks \uD83C\uDF36\uFE0F" : "Jen's 2025\u201326 NCAA Tournament Picks"}
+                {isSpicy ? "Spicy Jen\u2019s 2025\u201326 NCAA Tournament Picks \uD83C\uDF36\uFE0F" : "Jen\u2019s 2025\u201326 NCAA Tournament Picks"}
               </p>
             </div>
-
-            {/* Tab navigation */}
-            <nav className={`flex gap-1 rounded-lg p-1 transition-colors duration-700 ${isSpicy ? "bg-orange-950/50" : "bg-slate-800"}`}>
-              <button
-                onClick={() => setActiveTab("h2h")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${
-                  activeTab === "h2h"
-                    ? isSpicy
-                      ? "bg-orange-600 text-white shadow-sm"
-                      : "bg-emerald-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white hover:bg-slate-700"
-                }`}
-              >
-                Head-to-Head
-              </button>
-              <button
-                onClick={() => setActiveTab("bracket")}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-300 ${
-                  activeTab === "bracket"
-                    ? isSpicy
-                      ? "bg-orange-600 text-white shadow-sm"
-                      : "bg-emerald-600 text-white shadow-sm"
-                    : "text-slate-400 hover:text-white hover:bg-slate-700"
-                }`}
-              >
-                {isSpicy ? "Spicy Bracket \uD83C\uDF36\uFE0F" : "Jen's Full Bracket"}
-              </button>
-            </nav>
           </div>
         </div>
       </header>
 
       {/* Main content */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {activeTab === "h2h" ? (
-          <HeadToHead mode={mode} onModeChange={setMode} />
-        ) : (
-          <FullBracket mode={mode} onModeChange={setMode} />
-        )}
+        <HeadToHead mode={mode} onModeChange={setMode} />
       </main>
 
       {/* Footer */}
