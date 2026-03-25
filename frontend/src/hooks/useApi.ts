@@ -1,6 +1,6 @@
 import type { TeamListItem, PredictionResponse, BracketResponse } from "../types/api";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export async function fetchTeams(season: number, query: string): Promise<TeamListItem[]> {
   if (!query || query.length < 2) return [];
