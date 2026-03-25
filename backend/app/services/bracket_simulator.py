@@ -1,9 +1,9 @@
 """
 Bracket simulation service.
 
-Simulates a full 64-team NCAA tournament bracket using the trained
-prediction model, producing per-round results with confidence scores
-and model reliability metadata.
+Pulls the REAL tournament bracket from the database (scraped from
+Sports Reference) and simulates every game using the trained model.
+Uses actual first-round matchups, not synthetic ones.
 """
 
 import json
@@ -11,117 +11,81 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from backend.app.data.database import SessionLocal, Team, TeamSeasonStats
+from backend.app.data.database import SessionLocal, Team, TeamSeasonStats, TournamentGame
 from backend.app.models.predictor import predict_matchup
 
 logger = logging.getLogger(__name__)
 
-MODEL_METADATA_PATH = Path("models") / "model_metadata.json"
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+MODEL_METADATA_PATH = _PROJECT_ROOT / "models" / "safe_jen_metadata.json"
 
-# Standard NCAA first-round seed matchups within each region (higher seed listed first).
-FIRST_ROUND_SEED_MATCHUPS: List[Tuple[int, int]] = [
-    (1, 16),
-    (8, 9),
-    (5, 12),
-    (4, 13),
-    (6, 11),
-    (3, 14),
-    (7, 10),
-    (2, 15),
-]
+FIRST_ROUND_SEED_PAIRS = {
+    (1, 16), (8, 9), (5, 12), (4, 13),
+    (6, 11), (3, 14), (7, 10), (2, 15),
+}
 
-ROUND_NAMES: List[str] = ["R64", "R32", "S16", "E8", "F4", "Championship"]
-
-# Region labels used when grouping the 64 teams into four pods.
-REGION_LABELS: List[str] = ["South", "East", "West", "Midwest"]
+ROUND_NAMES = ["R64", "R32", "S16", "E8", "F4", "Championship"]
+REGION_LABELS = ["Region 1", "Region 2", "Region 3", "Region 4"]
 
 
 def _load_round_accuracy() -> Dict[str, Any]:
-    """Load per-round model accuracy metadata from disk."""
     if not MODEL_METADATA_PATH.exists():
-        logger.warning("Model metadata file not found at %s", MODEL_METADATA_PATH)
         return {}
     with open(MODEL_METADATA_PATH, "r") as fh:
         metadata = json.load(fh)
     return metadata.get("round_accuracy", {})
 
 
-def _fetch_tournament_teams(
-    season: int,
-) -> List[Dict[str, Any]]:
+def _fetch_real_r64(season: int) -> List[List[Tuple[Dict[str, Any], Dict[str, Any]]]]:
     """
-    Return all tournament-seeded teams for *season*, ordered by seed.
+    Fetch the actual R64 matchups from the DB, grouped into 4 regions of 8 games.
 
-    Each entry is a dict with keys: team_id, name, seed, conference.
-    Raises ValueError if fewer than 64 seeded teams are found.
+    Returns a list of 4 regions, each containing 8 (team_a, team_b) tuples
+    in bracket order.
     """
     session = SessionLocal()
     try:
-        rows = (
-            session.query(Team, TeamSeasonStats)
-            .join(TeamSeasonStats, Team.id == TeamSeasonStats.team_id)
-            .filter(
-                TeamSeasonStats.season == season,
-                TeamSeasonStats.seed.isnot(None),
-            )
-            .order_by(TeamSeasonStats.seed)
+        all_games = (
+            session.query(TournamentGame)
+            .filter_by(season=season)
+            .order_by(TournamentGame.id)
             .all()
         )
 
-        teams = [
-            {
-                "team_id": team.id,
-                "name": team.name,
-                "seed": stats.seed,
-                "conference": team.conference,
-            }
-            for team, stats in rows
-        ]
+        # Identify R64 games by seed pattern (1v16, 8v9, etc.)
+        r64_matchups = []
+        for g in all_games:
+            pair = (min(g.team_a_seed or 0, g.team_b_seed or 0),
+                    max(g.team_a_seed or 0, g.team_b_seed or 0))
+            if pair in FIRST_ROUND_SEED_PAIRS:
+                team_a = session.get(Team, g.team_a_id)
+                team_b = session.get(Team, g.team_b_id)
+                r64_matchups.append((
+                    {"name": team_a.name, "seed": g.team_a_seed},
+                    {"name": team_b.name, "seed": g.team_b_seed},
+                ))
 
-        if len(teams) < 60:
+        if len(r64_matchups) < 32:
             raise ValueError(
-                f"Expected ~64 tournament teams for season {season}, "
-                f"found {len(teams)}. Ensure seeding data has been ingested."
-            )
-        if len(teams) < 64:
-            logger.warning(
-                "Found %d teams for season %d (expected 64). "
-                "Some play-in teams may be missing.",
-                len(teams), season,
+                f"Expected 32 R64 games for season {season}, found {len(r64_matchups)}. "
+                f"Ensure bracket data has been ingested."
             )
 
-        return teams
+        # Split into 4 regions of 8 games (they come in bracket order from the scraper)
+        regions = []
+        for i in range(0, 32, 8):
+            regions.append(r64_matchups[i:i + 8])
+
+        return regions
     finally:
         session.close()
 
 
-def _assign_regions(
-    teams: List[Dict[str, Any]],
-) -> Dict[str, List[Dict[str, Any]]]:
-    """
-    Split 64 seeded teams into four 16-team regions.
-
-    Teams are assumed to be ordered by seed.  For each seed value (1-16),
-    the four teams holding that seed are distributed across the four regions
-    in order.  This mirrors the real bracket structure where each region
-    contains exactly one of each seed 1-16.
-    """
-    regions: Dict[str, List[Dict[str, Any]]] = {
-        label: [] for label in REGION_LABELS
-    }
-
-    # Group teams by seed value.
-    seed_groups: Dict[int, List[Dict[str, Any]]] = {}
-    for team in teams:
-        seed_groups.setdefault(team["seed"], []).append(team)
-
-    for seed_val in range(1, 17):
-        group = seed_groups.get(seed_val, [])
-        for idx, team in enumerate(group):
-            region_label = REGION_LABELS[idx % 4]
-            regions[region_label].append(team)
-
-    return regions
+def _get_region_label(season: int, region_idx: int) -> str:
+    """Get the region label. We use generic labels since the scraper
+    doesn't reliably capture region names."""
+    # Common region name patterns by 1-seed
+    return REGION_LABELS[region_idx]
 
 
 def _build_matchup_result(
@@ -132,9 +96,6 @@ def _build_matchup_result(
     game_number: int,
     mode: str = "safe",
 ) -> Dict[str, Any]:
-    """
-    Run the predictor for a single game and return a structured result dict.
-    """
     prediction = predict_matchup(
         team_a_name=team_a["name"],
         team_b_name=team_b["name"],
@@ -144,7 +105,6 @@ def _build_matchup_result(
 
     winner_name = prediction["winner"]
     winner_entry = team_a if team_a["name"] == winner_name else team_b
-    loser_entry = team_b if winner_entry is team_a else team_a
 
     return {
         "game_number": game_number,
@@ -175,24 +135,16 @@ def _simulate_round(
     game_offset: int = 0,
     mode: str = "safe",
 ) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
-    """
-    Simulate all games in a single round.
-
-    Returns:
-        (results, winners) where *results* is the list of game result dicts
-        and *winners* is the list of advancing team entries (in matchup order).
-    """
-    results: List[Dict[str, Any]] = []
-    winners: List[Dict[str, Any]] = []
+    results = []
+    winners = []
 
     for idx, (team_a, team_b) in enumerate(matchups):
         game_result = _build_matchup_result(
-            team_a, team_b, season, round_name, game_number=game_offset + idx + 1,
-            mode=mode,
+            team_a, team_b, season, round_name,
+            game_number=game_offset + idx + 1, mode=mode,
         )
         results.append(game_result)
 
-        # Determine the advancing team entry.
         winner_name = game_result["predicted_winner"]["name"]
         winner_entry = team_a if team_a["name"] == winner_name else team_b
         winners.append(winner_entry)
@@ -201,29 +153,18 @@ def _simulate_round(
 
 
 def _pair_winners(winners: List[Dict[str, Any]]) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
-    """Pair up consecutive winners for the next round."""
-    return [
-        (winners[i], winners[i + 1])
-        for i in range(0, len(winners), 2)
-    ]
+    return [(winners[i], winners[i + 1]) for i in range(0, len(winners), 2)]
 
 
 def simulate_bracket(season: int, mode: str = "safe") -> Dict[str, Any]:
     """
-    Simulate a full 64-team NCAA tournament bracket for the given season.
-
-    Returns a structured dict containing:
-        - season
-        - regions (with per-region round results through Elite Eight)
-        - final_four, championship (cross-region rounds)
-        - champion
-        - model_reliability (per-round accuracy metadata)
+    Simulate a full NCAA tournament bracket using REAL matchups
+    from the database for the given season.
     """
     round_accuracy = _load_round_accuracy()
-    teams = _fetch_tournament_teams(season)
-    regions = _assign_regions(teams)
+    region_matchups = _fetch_real_r64(season)
 
-    bracket: Dict[str, Any] = {
+    bracket = {
         "season": season,
         "regions": {},
         "final_four": None,
@@ -232,7 +173,6 @@ def simulate_bracket(season: int, mode: str = "safe") -> Dict[str, Any]:
         "model_reliability": {},
     }
 
-    # ---- Build model reliability section ----
     for rnd in ROUND_NAMES:
         info = round_accuracy.get(rnd, {})
         bracket["model_reliability"][rnd] = {
@@ -241,47 +181,35 @@ def simulate_bracket(season: int, mode: str = "safe") -> Dict[str, Any]:
             "note": _reliability_note(rnd, info.get("accuracy")),
         }
 
-    # ---- Simulate each region through the Elite Eight ----
-    final_four_teams: List[Dict[str, Any]] = []
+    final_four_teams = []
     game_counter = 0
 
-    for region_label in REGION_LABELS:
-        region_teams = regions[region_label]
+    for region_idx, r64_games in enumerate(region_matchups):
+        region_label = _get_region_label(season, region_idx)
 
-        # Build a lookup by seed for easy first-round pairing.
-        by_seed: Dict[int, Dict[str, Any]] = {t["seed"]: t for t in region_teams}
+        # Collect all teams in this region for display
+        all_teams = set()
+        for a, b in r64_games:
+            all_teams.add((a["name"], a["seed"]))
+            all_teams.add((b["name"], b["seed"]))
 
-        # First round (Round of 64): pair by standard seed matchups.
-        # Skip matchups where a seed is missing (play-in losers).
-        r64_matchups: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
-        r64_byes: List[Dict[str, Any]] = []
-        for hi, lo in FIRST_ROUND_SEED_MATCHUPS:
-            if hi in by_seed and lo in by_seed:
-                r64_matchups.append((by_seed[hi], by_seed[lo]))
-            elif hi in by_seed:
-                r64_byes.append(by_seed[hi])
-            elif lo in by_seed:
-                r64_byes.append(by_seed[lo])
-
-        region_data: Dict[str, Any] = {
+        region_data = {
             "region": region_label,
             "teams": [
-                {"name": t["name"], "seed": t["seed"]}
-                for t in sorted(region_teams, key=lambda t: t["seed"])
+                {"name": name, "seed": seed}
+                for name, seed in sorted(all_teams, key=lambda x: x[1])
             ],
             "rounds": {},
         }
 
-        # R64
+        # R64 — use the REAL matchups
         r64_results, r64_winners = _simulate_round(
-            r64_matchups, season, "R64", game_offset=game_counter, mode=mode
+            r64_games, season, "R64", game_offset=game_counter, mode=mode
         )
-        # Add bye teams (missing opponents) to winners list
-        r64_winners.extend(r64_byes)
         game_counter += len(r64_results)
         region_data["rounds"]["R64"] = r64_results
 
-        # R32
+        # R32 — pair consecutive R64 winners
         r32_matchups = _pair_winners(r64_winners)
         r32_results, r32_winners = _simulate_round(
             r32_matchups, season, "R32", game_offset=game_counter, mode=mode
@@ -306,15 +234,10 @@ def simulate_bracket(season: int, mode: str = "safe") -> Dict[str, Any]:
         region_data["rounds"]["E8"] = e8_results
 
         bracket["regions"][region_label] = region_data
-
-        # The single E8 winner advances to the Final Four.
-        assert len(e8_winners) == 1, (
-            f"Expected 1 Elite Eight winner per region, got {len(e8_winners)}"
-        )
         final_four_teams.append(e8_winners[0])
 
-    # ---- Final Four ----
-    f4_matchups: List[Tuple[Dict[str, Any], Dict[str, Any]]] = [
+    # Final Four
+    f4_matchups = [
         (final_four_teams[0], final_four_teams[1]),
         (final_four_teams[2], final_four_teams[3]),
     ]
@@ -323,39 +246,32 @@ def simulate_bracket(season: int, mode: str = "safe") -> Dict[str, Any]:
     )
     game_counter += len(f4_results)
     bracket["final_four"] = {
-        "teams": [
-            {"name": t["name"], "seed": t["seed"]}
-            for t in final_four_teams
-        ],
+        "teams": [{"name": t["name"], "seed": t["seed"]} for t in final_four_teams],
         "games": f4_results,
     }
 
-    # ---- Championship ----
+    # Championship
     champ_matchups = _pair_winners(f4_winners)
     champ_results, champ_winners = _simulate_round(
         champ_matchups, season, "Championship", game_offset=game_counter, mode=mode
     )
-    bracket["championship"] = {
-        "game": champ_results[0],
-    }
+    bracket["championship"] = {"game": champ_results[0]}
     bracket["champion"] = {
         "name": champ_winners[0]["name"],
         "seed": champ_winners[0]["seed"],
     }
-
     bracket["total_games"] = game_counter + len(champ_results)
 
     return bracket
 
 
 def _reliability_note(round_name: str, accuracy: Optional[float]) -> str:
-    """Generate a human-readable reliability note for a tournament round."""
     if accuracy is None:
         return "No historical accuracy data available."
     if accuracy >= 0.85:
-        return "High reliability — model performs strongly in this round."
+        return "High reliability -- model performs strongly in this round."
     if accuracy >= 0.70:
-        return "Moderate reliability — predictions are solid but upsets occur."
+        return "Moderate reliability -- predictions are solid but upsets occur."
     if accuracy >= 0.55:
-        return "Lower reliability — later rounds are inherently harder to predict."
-    return "Limited reliability — treat predictions with caution."
+        return "Lower reliability -- later rounds are inherently harder to predict."
+    return "Limited reliability -- treat predictions with caution."

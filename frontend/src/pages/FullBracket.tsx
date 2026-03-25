@@ -18,7 +18,7 @@ const ROUND_DISPLAY: Record<string, string> = {
 
 const REGION_ROUNDS = ["R64", "R32", "S16", "E8"] as const;
 
-const CURRENT_SEASON = 2025;
+const CURRENT_SEASON = 2026;
 
 interface FullBracketProps {
   mode: "safe" | "spicy";

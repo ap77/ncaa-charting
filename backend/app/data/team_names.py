@@ -39,6 +39,9 @@ ALIASES = {
     "siu edwardsville": "southern illinois-edwardsville",
     "siu-edwardsville": "southern illinois-edwardsville",
     "siu": "southern illinois",
+    "penn": "pennsylvania",
+    "liu": "long island",
+    "liu brooklyn": "long island",
 }
 
 

@@ -26,7 +26,8 @@ from backend.app.data.team_names import normalize_team_name
 
 logger = logging.getLogger(__name__)
 
-MODEL_DIR = Path("models")
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
+MODEL_DIR = _PROJECT_ROOT / "models"
 
 _models = {}  # mode -> (model, explainer, feature_cols)
 
@@ -57,9 +58,15 @@ def _load_model(mode: str = "safe"):
 
 
 def _get_team_stats(session, team_name: str, season: int):
-    """Look up a team and its season stats."""
+    """Look up a team and its season stats.
+    Handles name aliases (e.g. 'Penn' -> 'Pennsylvania') by trying
+    the normalized name if the direct lookup has no stats."""
     normalized = normalize_team_name(team_name)
+
+    # Try direct match first
     team = session.query(Team).filter_by(name_normalized=normalized).first()
+
+    # If no direct match, or direct match has no stats, try fuzzy
     if team is None:
         team = session.query(Team).filter(Team.name.ilike(f"%{team_name}%")).first()
     if team is None:
@@ -70,6 +77,22 @@ def _get_team_stats(session, team_name: str, season: int):
         .filter_by(team_id=team.id, season=season)
         .first()
     )
+
+    # If no stats for this season under this team record, the name might
+    # be an alias (e.g. "Penn" -> "Pennsylvania"). Try finding a different
+    # team record whose normalized name matches ours and has stats.
+    if stats is None and normalized != team.name_normalized:
+        alt_team = session.query(Team).filter_by(name_normalized=normalized).first()
+        if alt_team and alt_team.id != team.id:
+            stats = (
+                session.query(TeamSeasonStats)
+                .filter_by(team_id=alt_team.id, season=season)
+                .first()
+            )
+            if stats:
+                team = alt_team
+
+    # Fallback: most recent season
     if stats is None:
         stats = (
             session.query(TeamSeasonStats)

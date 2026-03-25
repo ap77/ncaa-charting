@@ -6,7 +6,7 @@ import StatBreakdownTable from "../components/StatBreakdownTable";
 import { fetchPrediction } from "../hooks/useApi";
 import type { PredictionResponse } from "../types/api";
 
-const CURRENT_SEASON = 2025;
+const CURRENT_SEASON = 2026;
 
 interface HeadToHeadProps {
   mode: "safe" | "spicy";
