@@ -1,9 +1,12 @@
 """FastAPI application entry point."""
 
 import os
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.api.predictions import router as predictions_router
 from app.api.teams import router as teams_router
@@ -14,12 +17,6 @@ app = FastAPI(
     version="0.2.0",
     description="NCAA tournament matchup predictions — Safe Jen & Spicy Jen",
 )
-
-# Allow all origins in production (static frontend on different domain)
-allowed_origins = os.environ.get(
-    "CORS_ORIGINS",
-    "http://localhost:5173,http://localhost:3000",
-).split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,3 +34,19 @@ app.include_router(bracket_router, prefix="/api/bracket", tags=["bracket"])
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+
+# Serve frontend static files
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_FRONTEND_DIST = _PROJECT_ROOT / "frontend" / "dist"
+
+if _FRONTEND_DIST.exists():
+    app.mount("/assets", StaticFiles(directory=str(_FRONTEND_DIST / "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        """Serve the React SPA for all non-API routes."""
+        file_path = _FRONTEND_DIST / full_path
+        if file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(_FRONTEND_DIST / "index.html"))
