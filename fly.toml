@@ -1,8 +1,3 @@
-# fly.toml app configuration file generated for jen-erate-winner on 2026-03-25T21:42:17Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
 app = 'jen-erate-winner'
 primary_region = 'iad'
 
@@ -17,7 +12,6 @@ primary_region = 'iad'
   processes = ['app']
 
 [[vm]]
-  memory = '1gb'
   cpu_kind = 'shared'
   cpus = 1
   memory_mb = 1024
