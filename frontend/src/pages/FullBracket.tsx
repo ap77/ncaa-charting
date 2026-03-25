@@ -20,9 +20,13 @@ const REGION_ROUNDS = ["R64", "R32", "S16", "E8"] as const;
 
 const CURRENT_SEASON = 2025;
 
-export default function FullBracket() {
+interface FullBracketProps {
+  mode: "safe" | "spicy";
+  onModeChange: (mode: "safe" | "spicy") => void;
+}
+
+export default function FullBracket({ mode, onModeChange }: FullBracketProps) {
   const season = CURRENT_SEASON;
-  const [mode, setMode] = useState<"safe" | "spicy">("safe");
   const [bracket, setBracket] = useState<BracketResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -65,7 +69,7 @@ export default function FullBracket() {
     <div>
       {/* Mode selector */}
       <div className="mb-5">
-        <ModeSelector mode={mode} onChange={setMode} />
+        <ModeSelector mode={mode} onChange={onModeChange} />
       </div>
 
       {/* Header + simulate button */}

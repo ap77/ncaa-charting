@@ -8,10 +8,14 @@ import type { PredictionResponse } from "../types/api";
 
 const CURRENT_SEASON = 2025;
 
-export default function HeadToHead() {
+interface HeadToHeadProps {
+  mode: "safe" | "spicy";
+  onModeChange: (mode: "safe" | "spicy") => void;
+}
+
+export default function HeadToHead({ mode, onModeChange }: HeadToHeadProps) {
   const [teamA, setTeamA] = useState("");
   const [teamB, setTeamB] = useState("");
-  const [mode, setMode] = useState<"safe" | "spicy">("safe");
   const [result, setResult] = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -56,7 +60,7 @@ export default function HeadToHead() {
 
       {/* Mode selector */}
       <div className="mb-5">
-        <ModeSelector mode={mode} onChange={setMode} />
+        <ModeSelector mode={mode} onChange={onModeChange} />
       </div>
 
       {/* Input section */}
