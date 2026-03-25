@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import TeamSelector from "../components/TeamSelector";
 import ModeSelector from "../components/ModeSelector";
 import ConfidenceBar from "../components/ConfidenceBar";
@@ -19,8 +19,26 @@ export default function HeadToHead({ mode, onModeChange }: HeadToHeadProps) {
   const [result, setResult] = useState<PredictionResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const hasPredicted = useRef(false);
 
-  async function handlePredict() {
+  async function runPrediction(m: string) {
+    if (!teamA || !teamB) return;
+
+    setError("");
+    setLoading(true);
+
+    try {
+      const data = await fetchPrediction(teamA, teamB, CURRENT_SEASON, m);
+      setResult(data);
+      hasPredicted.current = true;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Jen ran into an issue. Try again!");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handlePredict() {
     if (!teamA || !teamB) {
       setError("Pick both teams first \u2014 Jen needs two to tango.");
       return;
@@ -29,20 +47,15 @@ export default function HeadToHead({ mode, onModeChange }: HeadToHeadProps) {
       setError("Nice try \u2014 Jen needs two different teams to make a call.");
       return;
     }
-
-    setError("");
-    setLoading(true);
-    setResult(null);
-
-    try {
-      const data = await fetchPrediction(teamA, teamB, CURRENT_SEASON, mode);
-      setResult(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Jen ran into an issue. Try again!");
-    } finally {
-      setLoading(false);
-    }
+    runPrediction(mode);
   }
+
+  // Re-fetch when mode toggles, but only if a prediction was already shown
+  useEffect(() => {
+    if (hasPredicted.current && teamA && teamB) {
+      runPrediction(mode);
+    }
+  }, [mode]);
 
   const isSpicy = mode === "spicy";
 
