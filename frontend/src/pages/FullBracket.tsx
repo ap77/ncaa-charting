@@ -101,7 +101,7 @@ export default function FullBracket({ mode, onModeChange }: FullBracketProps) {
           ) : isSpicy ? (
             "Let Spicy Jen Fill the Bracket \uD83C\uDF36\uFE0F"
           ) : (
-            "Let Jen Fill the Bracket"
+            "Let Safe Jen Fill the Bracket \uD83C\uDFC6"
           )}
         </button>
       </div>

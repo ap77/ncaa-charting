@@ -98,7 +98,7 @@ export default function HeadToHead({ mode, onModeChange }: HeadToHeadProps) {
           ) : isSpicy ? (
             "Let Spicy Jen Pick \uD83C\uDF36\uFE0F"
           ) : (
-            "Let Jen Pick \uD83C\uDFC6"
+            "Let Safe Jen Pick \uD83C\uDFC6"
           )}
         </button>
 
